@@ -229,8 +229,20 @@ async function start() {
         }
         break;
       case "takeTicket":
-        // remove buttons from message and add use to channel
+        // ensure the person who clicked isnt already in the trade
+        if (
+          interaction.user.id === activeTrade.initiator.id ||
+          interaction.user.id === activeTrade.partner.id
+        ) {
+          interaction.reply({
+            content: "You cant be the middleperson in your own trade!",
+            ephemeral: true,
+          });
+          process.env.DEV_LOG ? console.warn(new Date(), interaction.user.username, "tried to middleperson their own trade!") : null;
+          return;
+        }
         activeTrade.addMiddle(interaction.user);
+        // remove buttons from message and add use to channel
         await interaction.update({
           content: `New trade request from ${activeTrade.initiator} to ${
             activeTrade.partner
