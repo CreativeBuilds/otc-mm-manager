@@ -67,14 +67,13 @@ async function start() {
     switch (command) {
       case "startTrade":
         if (!activeTrade) {
-          interaction.reply({
+          return interaction.reply({
             content: "Trade expired, please try again",
             ephemeral: true,
           });
-          return;
         }
         // check if person who clicked is the person who requested the trade
-        if (interaction.user.id === activeTrade.initiator.id) {
+        if(interaction.user.id === activeTrade.initiator.id) {
           // create channel and add both users to it
           // channel should be under the category of the "active trades" channel
           // get active trades channel category by name match
@@ -98,7 +97,7 @@ async function start() {
               },
               {
                 // add self/bot
-                id: "1025021163904172043",
+                id: client.user.id,
                 allow: ["ViewChannel"],
               },
               {
@@ -112,14 +111,15 @@ async function start() {
             ],
           });
           activeTrade.channel = channel;
+          console.log("Created new channel", channel.name);
 
           // send message alerting both users to the channel and request for confirmation by partner
           const message = await channel.send({
-            content: /*`${
+            content: `${
               activeTrade.initiator
             } has initiated a trade request with you ${
               activeTrade.partner
-            }.\n*/ `Trade:\n\`\`\`${activeTrade.initiator.username} is ${
+            }.\n Trade:\n\`\`\`${activeTrade.initiator.username} is ${
               activeTrade.wts_or_wtb ? "buying" : "selling"
             } ${activeTrade.amount} tao for a total of ${
               activeTrade.total_price
@@ -149,11 +149,21 @@ async function start() {
               // ),
             ],
           });
+          
+          await interaction.update({
+            content: `Trade request sent to ${activeTrade.partner}`,
+            components: [],
+          })
         }
         break;
       case "confirmTrade":
         // check if person who clicked is the person who requested the trade
-        if (interaction.user.id === activeTrade.initiator.id) {
+        if (interaction.user.id === activeTrade.initiator.id)
+          return interaction.reply({
+            content: "You've already confirmed the trade!",
+            ephemeral: true,
+          })
+        else if (interaction.user.id === activeTrade.partner.id) {
           activeTrade.partner_accepted = true;
 
           // create new ticket for middlepersons
@@ -188,7 +198,7 @@ async function start() {
                 },
                 {
                   // add self/bot
-                  id: "1025021163904172043",
+                  id: client.user.id,
                   allow: ["ViewChannel"],
                 },
                 {
@@ -221,6 +231,9 @@ async function start() {
             ],
           });
           activeTrade.ticket = ticket;
+          interaction.channel.send({
+            content: `Trade accepted! A request for a middleperson has been sent.`,
+          })
         } else {
           interaction.reply({
             content: "This button is not meant for you",
@@ -346,7 +359,7 @@ async function start() {
             .then(() => {})
             .catch((err) => {
               console.error(err);
-              console.log("failed to delete channel");
+              console.log("failed to delete channel, already deleted?", TRADE_CHANNEL.name, TRADE_CHANNEL.id);
             });
         }, 60000);
         return;
