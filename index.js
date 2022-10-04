@@ -189,7 +189,7 @@ async function start() {
               activeTrade.wts_or_wtb ? "buying" : "selling"
             } ${activeTrade.amount} tao for a total of ${
               activeTrade.total_price
-            } ${activeTrade.currency}\`\`\`\nStatus: Looking for Middleperson`,
+            } ${activeTrade.currency}\`\`\`\nStatus: Looking for <@&${process.env.MIDDLEPERSON_ROLE}>`,
             components: [
               new Discord.ActionRowBuilder().addComponents(
                 new Discord.ButtonBuilder()
