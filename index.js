@@ -236,7 +236,7 @@ async function start() {
           }
           
           // create ticket
-          const ticket = await tickets_channel.send({
+          const ticket = await t_channel.send({
             content: `New trade request from ${activeTrade.initiator} to ${
               activeTrade.partner
             }.\nTrade:\n\`\`\`${activeTrade.initiator.username} is ${
