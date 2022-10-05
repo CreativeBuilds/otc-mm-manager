@@ -69,10 +69,8 @@ async function start() {
       (channel) => channel.type === 4
     );
     const POSITION_LENGTH = all_categories.size;
-    let activeTrade = active_trades[key];
-    console.log(active_trades, key,"key we");
+    let activeTrade = active_trades.get(key);
     if (!activeTrade && command == "confirmTrade") {
-      console.log("EXPIRED")
       await interaction.reply({ content: "This trade has expired", ephemeral: true });
       await interaction.message.edit({
         components: []
@@ -252,7 +250,14 @@ async function start() {
           {
             ViewChannel: true,
           }
-        );
+        ).catch(async err => {
+          // channel no longer exists
+          console.log(err);
+
+          await interaction.channel.send({
+            content: `An error has occured. The trade channel for this trade has been deleted.`,
+          });
+        });
 
         // send message to channel
         await activeTrade.channel.send({
@@ -286,7 +291,7 @@ async function start() {
           setTimeout(async () => {
             await CHANNEL.delete();
 
-            await activeTrade.ticket.edit({
+            await activeTrade.ticket?.edit({
               content: `Trade request from ${activeTrade.initiator} to ${
                 activeTrade.partner
               }.\nTrade:\n\`\`\`${activeTrade.initiator.username} is ${

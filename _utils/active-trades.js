@@ -25,6 +25,7 @@ class Trade {
         this.middlemen.push(middle);
     }
     hasMiddle(middle) {
+        console.log(this.middlemen.map(i => i.id), middle)
         return this.middlemen.map(i => i.id).includes(
             middle.id
         );
@@ -75,12 +76,14 @@ async function LoadTrades(category) {
         if(firstBotMessage.components.length == 0) {
             trade.partner_accepted = true;
 
+            const middle = botMessages.map(a => a).filter(m => m.mentions.users.size > 0)[1]?.mentions.users.map(a => a).filter(
+                (user) => user.id !== trade.initiator.id && user.id !== trade.partner.id
+            )[0];
             // determine who the middleman is
-            const middleman = botMessages.map(a => a).filter(m => m.mentions.users.size > 0)[1]?.mentions.users.first();
-            if(!!middleman)
-                trade.middlemen = [middleman];
+            if(!!middle)
+                trade.addMiddle(middle);
         }
-        active_trades[trade.ticket_id] = trade;
+        active_trades.set(trade.ticket_id, trade);
     }
     // get messages in ticket_channel up to oldestMessage.createdTimestamp
     const ticketMessages = await GetAllMessages(ticket_channel, [], (oldestMessage?.createdTimestamp || undefined));
@@ -93,16 +96,9 @@ async function LoadTrades(category) {
     for (let i = 0; i < botMessages.length; i++) {
         const message = botMessages[i];
         const mentions = message.mentions.users.map(a => a.id);
-        const trade = a_trades.reduce(
-            (acc, cur) => {
-                if(acc) return acc;
-                if (mentions.includes(cur.initiator.id) && mentions.includes(cur.partner.id) && !cur.ticket ) {
-                    return cur;
-                }
-                return acc;
-
-            }, null
-        )
+        const trade = a_trades.find(t => mentions.includes(t.initiator.id) && mentions.includes(t.partner.id));
+        // console.log(a_trades, active_trades.keys(),);
+        // console.log("trade", trade, mentions);
         if(trade && !trade.ticket && trade.partner_accepted) {
             trade.ticket = message;
         }
