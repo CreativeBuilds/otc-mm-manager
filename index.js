@@ -166,13 +166,12 @@ async function start() {
         break;
       case "confirmTrade":
         // check if person who clicked is the person who requested the trade
-        // if (interaction.user.id === activeTrade.initiator.id)
-        //   return interaction.reply({
-        //     content: "You've already confirmed the trade!",
-        //     ephemeral: true,
-        //   });
-        // else if (interaction.user.id === activeTrade.partner.id) {
-        if (interaction.user.id === activeTrade.initiator.id) {
+        if (interaction.user.id === activeTrade.initiator.id)
+          return interaction.reply({
+            content: "You've already confirmed the trade!",
+            ephemeral: true,
+          });
+        else if (interaction.user.id === activeTrade.partner.id) {
           activeTrade.partner_accepted = true;
 
           // create new ticket for middlepersons
