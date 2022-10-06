@@ -299,6 +299,14 @@ async function start() {
                 activeTrade.total_price
               } ${activeTrade.currency}\`\`\`\nStatus: Completed`,
             });
+
+            // get or create otc-sales channel
+            let otc_sales = await GetOTCSalesChannel(interaction);
+
+            // send message
+            await otc_sales.send({
+              content: `A trade of ${activeTrade.amount} TAO for ${activeTrade.total_price} ${activeTrade.currency} has been completed by ${activeTrade.middleperson}.`,
+            });
           }, 15000);
         } else {
           await interaction.reply({
@@ -369,6 +377,34 @@ async function start() {
   });
 
   client.login(process.env.DISCORD_TOKEN);
+
+  async function GetOTCSalesChannel(interaction) {
+    let otc_sales = interaction.guild.channels.cache.find(
+      (channel) => channel.name.toLowerCase() === "otc-sales"
+    );
+
+    // if channel doesnt exist, create it
+    if (!otc_sales) {
+
+      let trade_category = interaction.guild.channels.cache.find(
+        (channel) => channel.name.toLowerCase() === "trades"
+      );
+
+      otc_sales = await interaction.guild.channels.create({
+        name: "otc-sales",
+        type: 0,
+        parent: trade_category,
+        permissionOverwrites: [
+          {
+            id: interaction.guild.roles.everyone,
+            allow: ["ViewChannel"],
+            deny: ["SendMessages"],
+          },
+        ],
+      });
+    }
+    return otc_sales;
+  }
 }
 
 start();
