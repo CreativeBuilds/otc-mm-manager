@@ -58,7 +58,7 @@ module.exports = {
 					.setStyle(ButtonStyle.Success),
 			)
 
-		active_trades[ticket_id] = new Trade(
+		active_trades.set(ticket_id, new Trade(
 			interaction.user,
 			partner,
 			wts_or_wtb,
@@ -66,7 +66,7 @@ module.exports = {
 			currency,
 			total_price,
 			ticket_id
-		);
+		)) 
 
 		return interaction.reply({
 			content: `You want to ${wts_or_wtb ? "buy" : "sell"} ${amount} tao ${wts_or_wtb ? "from" : "to"} ${partner} for a total of ${total_price} ${currency}.`,

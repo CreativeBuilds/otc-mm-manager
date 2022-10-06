@@ -13,7 +13,8 @@ const Discord = require("discord.js");
 require("dotenv").config();
 const fs = require("node:fs");
 const path = require("node:path");
-const { active_trades } = require("./_utils/active-trades");
+const { CreateChannelCategory } = require("./_helpers/CreateChannelCategory");
+const { active_trades, LoadTrades } = require("./_utils/active-trades");
 
 async function start() {
   // with valid intents
@@ -40,27 +41,40 @@ async function start() {
     client.commands.set(command.data.name, command);
   }
 
-  client.on("ready", (client) => {
+  client.on("ready", async (client) => {
     console.log("I am ready as", client.user.tag);
-    client.commands.map((command) => {
-      client.application.commands.create(command.data);
-    });
+    await Promise.all(client.commands.map((command) => {
+      return client.application.commands.create(command.data);
+    }));
+
+    const cache = client.guilds.cache;
+    const guild = cache.first();
+    // Load active trades
+    let active_trades_category = await GetActiveTradesCategory(
+      guild.channels.cache,
+      guild,
+      guild.channels.cache.size
+    );
+    let trades = await LoadTrades(active_trades_category);
+    // console.log(trades);
   });
 
   // Handle Button Interactions
   client.on("interactionCreate", async (interaction) => {
     if (!interaction.isButton()) return;
     const ID_PARTS = interaction.customId.split("-");
-    const command = ID_PARTS[0];
+    let command = ID_PARTS[0];
     const key = ID_PARTS[1];
     const all_categories = interaction.guild.channels.cache.filter(
       (channel) => channel.type === 4
     );
     const POSITION_LENGTH = all_categories.size;
-    let activeTrade = active_trades[key];
-
+    let activeTrade = active_trades.get(key);
     if (!activeTrade && command == "confirmTrade") {
-      interaction.reply({ content: "This trade has expired", ephemeral: true });
+      await interaction.reply({ content: "This trade has expired", ephemeral: true });
+      await interaction.message.edit({
+        components: []
+      });
       command = "cancelTrade";
     }
 
@@ -78,13 +92,7 @@ async function start() {
           // channel should be under the category of the "active trades" channel
           // get active trades channel category by name match
 
-          const ChannelName = "Active Trades";
-          let active_trades_category = await CreateChannelCategory({
-            all_categories,
-            ChannelName,
-            interaction,
-            positionLength: POSITION_LENGTH,
-          });
+          let active_trades_category = await GetActiveTradesCategory(all_categories, interaction.guild, POSITION_LENGTH);
           // deny everyone from seeing inside
           const channel = await interaction.guild.channels.create({
             name: `${activeTrade.initiator.username}-${activeTrade.partner.username}-${key}`,
@@ -168,72 +176,7 @@ async function start() {
 
           // create new ticket for middlepersons
           // channel should be under the category of the "Middlepersons"
-          let t_channel;
-          if(process.env.TICKET_CHANNEL) {
-            t_channel = await interaction.guild.channels.cache.get(process.env.TICKET_CHANNEL);
-          }
-          if(!t_channel) {
-            const middlepersons_category = await CreateChannelCategory({
-              all_categories,
-              ChannelName: "Middlepersons",
-              interaction,
-              positionLength: POSITION_LENGTH,
-              permissionOverwrites: [
-                {
-                  id: interaction.guild.roles.everyone,
-                  deny: ["ViewChannel"],
-                },
-                {
-                  // add self/bot
-                  id: client.user.id,
-                  allow: ["ViewChannel", "SendMessages"],
-                },
-                {
-                  // allow middlepersons to see
-                  id: process.env.MIDDLEPERSON_ROLE,
-                  allow: ["ViewChannel", "SendMessages"],
-                },
-              ],
-            });
-  
-            // clear buttons from message
-            await interaction.update({
-              components: [],
-            });
-  
-            // get channel in category labeled "tickets" using discordjs
-            let tickets_channel = interaction.guild.channels.cache.filter(
-              (channel) => channel.name.toLowerCase() === "tickets"
-            );
-            // if tickets doesnt exist, create it
-            if (!tickets_channel || tickets_channel.size === 0) {
-              tickets_channel = await interaction.guild.channels.create({
-                name: "Tickets",
-                type: 0,
-                parent: middlepersons_category,
-                permissionOverwrites: [
-                  {
-                    id: interaction.guild.roles.everyone,
-                    deny: ["ViewChannel"],
-                  },
-                  {
-                    // add self/bot
-                    id: client.user.id,
-                    allow: ["ViewChannel"],
-                  },
-                  {
-                    id: process.env.MIDDLEPERSON_ROLE,
-                    allow: ["ViewChannel"],
-                  },
-                ],
-              });
-            } else {
-              // first item in collection
-              tickets_channel = tickets_channel.first();
-              // tickets_channel = tickets_channel[0];
-            }
-            t_channel = tickets_channel;
-          }
+          let t_channel = await GetTicketChannel(interaction, all_categories, POSITION_LENGTH, client);
           
           // create ticket
           const ticket = await t_channel.send({
@@ -254,9 +197,12 @@ async function start() {
             ],
           });
           activeTrade.ticket = ticket;
-          interaction.channel.send({
+          await interaction.channel.send({
             content: `Trade accepted! A request for a middleperson has been sent.`,
           });
+          await interaction.update({
+            components: [],
+          })
         } else {
           interaction.reply({
             content: "This button is not meant for you",
@@ -303,7 +249,14 @@ async function start() {
           {
             ViewChannel: true,
           }
-        );
+        ).catch(async err => {
+          // channel no longer exists
+          console.log(err);
+
+          await interaction.channel.send({
+            content: `An error has occured. The trade channel for this trade has been deleted.`,
+          });
+        });
 
         // send message to channel
         await activeTrade.channel.send({
@@ -337,7 +290,7 @@ async function start() {
           setTimeout(async () => {
             await CHANNEL.delete();
 
-            await activeTrade.ticket.edit({
+            await activeTrade.ticket?.edit({
               content: `Trade request from ${activeTrade.initiator} to ${
                 activeTrade.partner
               }.\nTrade:\n\`\`\`${activeTrade.initiator.username} is ${
@@ -363,9 +316,6 @@ async function start() {
           // TODO: make a way to log the back out of this trade and tie it to the user
           cancel_party = "initial";
         }
-        await interaction.message.edit({
-          components: [],
-        });
 
         const content = `Trade has been terminated by ${
           !!activeTrade
@@ -376,8 +326,9 @@ async function start() {
         }.\nDeleting channel one minute from now...`;
         // await interaction.deleteReply();
         // remove channel from active trades
-        await interaction.reply({
+        await interaction.channel.send({
           content: content,
+          components: [],
         });
         process.env.DEV_LOG ? console.log(content) : null;
         // remove buttons from message
@@ -421,25 +372,85 @@ async function start() {
 }
 
 start();
-async function CreateChannelCategory({
-  all_categories,
-  ChannelName,
-  interaction,
-  positionLength,
-  permissionOverwrites,
-}) {
-  let active_trades_category = all_categories.find(
-    (category) => category.name.toLowerCase() === ChannelName.toLowerCase()
-  );
-  if (!active_trades_category) {
-    // create category in last position
-    active_trades_category = await interaction.guild.channels.create({
-      name: ChannelName,
-      type: 4,
-      // only allow middlepersons to see this
-      permissionOverwrites: permissionOverwrites,
-    });
-    await active_trades_category.setPosition(positionLength);
-  }
+async function GetActiveTradesCategory(all_categories, guild, POSITION_LENGTH) {
+  const ChannelName = "Active Trades";
+  let active_trades_category = await CreateChannelCategory({
+    all_categories,
+    ChannelName,
+    guild,
+    positionLength: POSITION_LENGTH,
+  });
   return active_trades_category;
 }
+
+async function GetTicketChannel(interaction, all_categories, POSITION_LENGTH, client) {
+  let t_channel;
+  if (process.env.TICKET_CHANNEL) {
+    t_channel = await interaction.guild.channels.cache.get(process.env.TICKET_CHANNEL);
+  }
+  if (!t_channel) {
+    const middlepersons_category = await CreateChannelCategory({
+      all_categories,
+      ChannelName: "Middlepersons",
+      interaction,
+      positionLength: POSITION_LENGTH,
+      permissionOverwrites: [
+        {
+          id: interaction.guild.roles.everyone,
+          deny: ["ViewChannel"],
+        },
+        {
+          // add self/bot
+          id: client.user.id,
+          allow: ["ViewChannel", "SendMessages"],
+        },
+        {
+          // allow middlepersons to see
+          id: process.env.MIDDLEPERSON_ROLE,
+          allow: ["ViewChannel", "SendMessages"],
+        },
+      ],
+    });
+
+    // clear buttons from message
+    await interaction.update({
+      components: [],
+    });
+
+    // get channel in category labeled "tickets" using discordjs
+    let tickets_channel = interaction.guild.channels.cache.filter(
+      (channel) => channel.name.toLowerCase() === "tickets"
+    );
+    // if tickets doesnt exist, create it
+    if (!tickets_channel || tickets_channel.size === 0) {
+      tickets_channel = await interaction.guild.channels.create({
+        name: "Tickets",
+        type: 0,
+        parent: middlepersons_category,
+        permissionOverwrites: [
+          {
+            id: interaction.guild.roles.everyone,
+            deny: ["ViewChannel"],
+          },
+          {
+            // add self/bot
+            id: client.user.id,
+            allow: ["ViewChannel"],
+          },
+          {
+            id: process.env.MIDDLEPERSON_ROLE,
+            allow: ["ViewChannel"],
+          },
+        ],
+      });
+    } else {
+      // first item in collection
+      tickets_channel = tickets_channel.first();
+      // tickets_channel = tickets_channel[0];
+    }
+    t_channel = tickets_channel;
+  }
+  return t_channel;
+}
+
+
