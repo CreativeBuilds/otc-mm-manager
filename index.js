@@ -385,9 +385,15 @@ async function start() {
 
     // if channel doesnt exist, create it
     if (!otc_sales) {
+
+      let trade_category = interaction.guild.channels.cache.find(
+        (channel) => channel.name.toLowerCase() === "trades"
+      );
+
       otc_sales = await interaction.guild.channels.create({
         name: "otc-sales",
         type: 0,
+        parent: trade_category,
         permissionOverwrites: [
           {
             id: interaction.guild.roles.everyone,
