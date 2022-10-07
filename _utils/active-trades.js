@@ -171,6 +171,46 @@ async function LoadTrades(category) {
 
 }
 
+async function RemoveStaleTrades() {
+    const trades = Array.from(active_trades.values());
+    console.log(`Starting to remove stale trades. ${trades.length} trades to check.`);
+    const stale = (await Promise.all(trades.map(async trade => {
+        // get last message sent in trade channel
+        let trade_channel = trade.channel;
+        let last_message = (await trade_channel.messages.fetch({ limit: 1 })).map(a => a)[0];
+        let last_message_time = last_message.createdTimestamp;
+        let now = Date.now();
+        let time_since_last_message = now - last_message_time;
+        let stale = time_since_last_message > 1000 * 60 * 60 * 12;
+        return {
+            trade, stale
+        };
+    }))).filter(({trade, stale}) => stale).map(({trade, stale}) => trade);
+
+    console.log(`Found ${stale.length} stale trades.`);
+
+    for (let i = 0; i < stale.length; i++) {
+        const trade = stale[i];
+        await trade.channel.delete();
+
+        // dm users that trade was cancelled
+        const initiator = trade.initiator;
+        const partner = trade.partner;
+        const middle = trade.middlemen[0];
+
+        const initiator_dm = await initiator.createDM();
+        const partner_dm = await partner.createDM();
+        const middle_dm = middle ? await middle.createDM() : null;
+
+        await initiator_dm.send(`Your trade with ${partner} has been cancelled due to inactivity for 12h.`);
+        await partner_dm.send(`Your trade with ${initiator} has been cancelled due to inactivity for 12h.`);
+        if(middle_dm) await middle_dm.send(`The trade with ${initiator} and ${partner} has been cancelled due to inactivity for 12h.`);
+
+        active_trades.delete(trade.ticket_id);
+    }
+    return active_trades;
+}
+
 module.exports = {
     active_trades,
     LoadTrades,
