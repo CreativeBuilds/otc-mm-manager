@@ -190,23 +190,29 @@ async function RemoveStaleTrades() {
     console.log(`Found ${stale.length} stale trades.`);
 
     for (let i = 0; i < stale.length; i++) {
-        const trade = stale[i];
-        await trade.channel.delete();
+        try {
+            const trade = stale[i];
+            await trade.channel.delete();
+    
+            // dm users that trade was cancelled
+            const initiator = trade.initiator;
+            const partner = trade.partner;
+            const middle = trade.middlemen[0];
+    
+            const initiator_dm = await initiator.createDM();
+            const partner_dm = await partner.createDM();
+            const middle_dm = middle ? await middle.createDM() : null;
+    
+            await initiator_dm.send(`Your trade with ${partner} has been cancelled due to inactivity for 12h.`);
+            await partner_dm.send(`Your trade with ${initiator} has been cancelled due to inactivity for 12h.`);
+            if(middle_dm) await middle_dm.send(`The trade with ${initiator} and ${partner} has been cancelled due to inactivity for 12h.`);
+    
+            active_trades.delete(trade.ticket_id);
 
-        // dm users that trade was cancelled
-        const initiator = trade.initiator;
-        const partner = trade.partner;
-        const middle = trade.middlemen[0];
-
-        const initiator_dm = await initiator.createDM();
-        const partner_dm = await partner.createDM();
-        const middle_dm = middle ? await middle.createDM() : null;
-
-        await initiator_dm.send(`Your trade with ${partner} has been cancelled due to inactivity for 12h.`);
-        await partner_dm.send(`Your trade with ${initiator} has been cancelled due to inactivity for 12h.`);
-        if(middle_dm) await middle_dm.send(`The trade with ${initiator} and ${partner} has been cancelled due to inactivity for 12h.`);
-
-        active_trades.delete(trade.ticket_id);
+        } catch(err) {
+            console.error(err);
+            console.log("Error removing stale trade", trade);
+        }
     }
     return active_trades;
 }
