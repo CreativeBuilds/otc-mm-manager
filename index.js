@@ -16,6 +16,16 @@ const path = require("node:path");
 const { CreateChannelCategory } = require("./_helpers/CreateChannelCategory");
 const { active_trades, LoadTrades } = require("./_utils/active-trades");
 
+const TimeFormat = new Intl.DateTimeFormat("en-US", {
+  // no year
+  year: "numeric",
+  month: "short",
+  day: "2-digit",
+  hour: "numeric",
+  minute: "numeric",
+  second: "numeric",
+  hour12: true,
+});
 async function start() {
   // with valid intents
   const client = new Discord.Client({
@@ -119,7 +129,7 @@ async function start() {
             ],
           });
           activeTrade.channel = channel;
-          console.log("Created new channel", channel.name);
+            console.log(`[${TimeFormat.format(new Date())}]`,"Created new channel", channel.name);
 
           // send message alerting both users to the channel and request for confirmation by partner
           const message = await channel.send({
