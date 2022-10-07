@@ -14,6 +14,7 @@ require("dotenv").config();
 const fs = require("node:fs");
 const path = require("node:path");
 const { CreateChannelCategory } = require("./_helpers/CreateChannelCategory");
+const FindPrice = require("./_helpers/FindPrice");
 const { active_trades, LoadTrades } = require("./_utils/active-trades");
 
 const TimeFormat = new Intl.DateTimeFormat("en-US", {
@@ -131,6 +132,8 @@ async function start() {
           activeTrade.channel = channel;
             console.log(`[${TimeFormat.format(new Date())}]`,"Created new channel", channel.name);
 
+          let price = await FindPrice(activeTrade.currency.toLowerCase(), activeTrade.amount);
+
           // send message alerting both users to the channel and request for confirmation by partner
           const message = await channel.send({
             content: `${
@@ -181,7 +184,9 @@ async function start() {
             content: "You've already confirmed the trade!",
             ephemeral: true,
           });
-        else if (interaction.user.id === activeTrade.partner.id) {
+        else if (interaction.user.id === activeTrade.partner.id) 
+        // if (interaction.user.id === activeTrade.initiator.id)
+        {
           activeTrade.partner_accepted = true;
 
           // create new ticket for middlepersons
@@ -313,10 +318,20 @@ async function start() {
 
             // get or create otc-sales channel
             let otc_sales = await GetOTCSalesChannel(interaction);
+            const curr = activeTrade.currency.toLowerCase();
+            let currency_isnt_stable = curr !== "usdt" && curr !== "usdc";
 
+            // if currency is a coin, get the usd price of the coin to determine the value of the trade
+            let value = activeTrade.total_price;
+            if (currency_isnt_stable) {
+              let coin_price = await FindPrice(curr, Number(activeTrade.total_price));
+              value = coin_price;
+            }
+
+            const single_coin_price = await FindPrice(curr, 1);
             // send message
             await otc_sales.send({
-              content: `A trade of ${activeTrade.amount} TAO for ${activeTrade.total_price} ${activeTrade.currency} has been completed by ${activeTrade.middleperson}.`,
+              content: `A trade of ${activeTrade.amount} TAO for ${activeTrade.total_price} ${activeTrade.currency} (${single_coin_price}) has been completed by ${activeTrade.middleperson}.\nValue: ${value} USD (${value / activeTrade.amount} per τ)`,
             });
           }, 15000);
         } else {
@@ -396,11 +411,11 @@ async function start() {
 
     // if channel doesnt exist, create it
     if (!otc_sales) {
-
+      console.log("Couldn't find otc-sales channel, creating one...");
       let trade_category = interaction.guild.channels.cache.find(
         (channel) => channel.name.toLowerCase() === "trades"
       );
-
+      
       otc_sales = await interaction.guild.channels.create({
         name: "otc-sales",
         type: 0,
