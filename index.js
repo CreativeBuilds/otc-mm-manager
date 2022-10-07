@@ -200,9 +200,10 @@ async function start() {
           await interaction.channel.send({
             content: `Trade accepted! A request for a middleperson has been sent.`,
           });
+          // attempt to remove components if possible
           await interaction.update({
             components: [],
-          })
+          }).catch(err => null);
         } else {
           interaction.reply({
             content: "This button is not meant for you",
