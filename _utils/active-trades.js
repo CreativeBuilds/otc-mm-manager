@@ -140,7 +140,9 @@ async function LoadTrades(category) {
         const partner_id = content.match(/<@!?\d+>/g)[1].slice(2, -1);
         const wtswtb = content.match(/selling|buying/g)[0].trim();
         const wts_or_wtb = wtswtb == "selling" ? 0 : wtswtb == "buying" ? 1 : null;
-        const currency = content.match(/(\w+)(?=\sfor)/g)[0];
+        // get section after "for"
+        const currency = content.split(" for ")[1].split(" ")[1];
+        // const currency = content.match(/(\w+)(?=\sfor)/g)[0];
         const ticket_id = message.channel.name.split("-").reverse()[0];
 
         if(wts_or_wtb == null) {
