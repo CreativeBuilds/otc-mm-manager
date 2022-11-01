@@ -434,6 +434,11 @@ async function GetTicketChannel(interaction, all_categories, POSITION_LENGTH, cl
   let t_channel;
   if (process.env.TICKET_CHANNEL) {
     t_channel = await interaction.guild.channels.cache.get(process.env.TICKET_CHANNEL);
+  } else {
+    // try to set t_channel to the channel with the name Middlepersons
+    t_channel = await interaction.guild.channels.cache.find(
+      (channel) => channel.name.toLowerCase() === "middlepersons"
+    );
   }
   if (!t_channel) {
     const middlepersons_category = await CreateChannelCategory({
