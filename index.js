@@ -437,7 +437,7 @@ async function GetTicketChannel(interaction, all_categories, POSITION_LENGTH, cl
   } else {
     // try to set t_channel to the channel with the name Middlepersons
     t_channel = await interaction.guild.channels.cache.find(
-      (channel) => channel.name.toLowerCase() === "middlepersons"
+      (channel) => channel.name.toLowerCase() === "tickets"
     );
   }
   if (!t_channel) {
