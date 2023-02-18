@@ -69,7 +69,7 @@ module.exports = {
 		)) 
 
 		return interaction.reply({
-			content: `You want to ${wts_or_wtb ? "buy" : "sell"} ${amount} tao ${wts_or_wtb ? "from" : "to"} ${partner} for a total of ${total_price} ${currency}.`,
+			content: `You want to ${wts_or_wtb ? "buy" : "sell"} ${amount} tao ${wts_or_wtb ? "from" : "to"} ${partner} for a total of ${total_price} ${currency}.\n\n**WARNING:** *Scammers will try to impersonate other users through DMs. For that reason, **All trades are to be conducted within this server.** Please be careful when trading with someone you don't know. If you are unsure, please ask a moderator for help.*`,
 			components: [actionrow],
 			ephemeral: true
 		}).then(() => {
