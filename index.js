@@ -143,7 +143,7 @@ async function start() {
               activeTrade.total_price
             } ${
               activeTrade.currency
-            }\`\`\`\nPlease confirm or cancel by clicking the buttons below.\n*Note: all messages in trade channels are logged and can be used as evidence in the event of a dispute.*`,
+            }\`\`\`\nPlease confirm or cancel by clicking the buttons below.\n*Note: all messages in trade channels are logged and can be used as evidence in the event of a dispute.* \n\n**WARNING:** *Scammers will try to impersonate other users through DMs. For that reason, **All trades are to be conducted within this server.** Please be careful when trading with someone you don't know. If you are unsure, please ask a moderator for help.*`,
             components: [
               new Discord.ActionRowBuilder().addComponents(
                 new Discord.ButtonBuilder()
@@ -169,7 +169,7 @@ async function start() {
           });
 
           await interaction.update({
-            content: `Trade request sent to ${activeTrade.partner}`,
+            content: `Trade request sent to ${activeTrade.partner}\n\n**WARNING:** *Scammers will try to impersonate other users through DMs. For that reason, **All trades are to be conducted within this server.** Please be careful when trading with someone you don't know. If you are unsure, please ask a moderator for help.*`,
             components: [],
           });
         }
